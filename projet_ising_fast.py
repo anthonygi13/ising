@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 #Functions
 "Initialise un réseau carré (L,L) de spins."
-def init_lattice(L=16):
+def init_lattice(L=64):
     return 2*np.random.randint(2,size=(L,L))-1
 
 "Calcule l'énergie de notre réseau de spins."
@@ -22,7 +22,7 @@ def mag(latt):
     
     
 "Méthode de Monte-Carlo."
-def MC(latt,N=10000,T=3):
+def MC(latt,N=500000,T=0.5):
     L=len(latt)
     for i in range(N):
         "On choisit un état au hasard"
