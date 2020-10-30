@@ -4,9 +4,6 @@
 # File : neural_network.py
 # Created by Anthony Giraudo and Clement Sebastiao the 30/10/2020
 
-"""
-"""
-
 # Modules
 
 import numpy as np
