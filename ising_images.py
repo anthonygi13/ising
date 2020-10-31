@@ -51,7 +51,7 @@ def MC(latt,N=500000,T=0.5):
 for j in range(20):
     T=0.6+j*0.2
     latt=init_lattice()
-    nlatt=MC(latt,N=1000000,T=T)
+    nlatt=MC(latt,N=2000000,T=T)
     for i in range(10):
         nlatt=MC(nlatt,T=T)
         plt.imsave("./images/image_{}_{}.png".format(round(T,1),i),nlatt)
