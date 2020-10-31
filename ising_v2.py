@@ -30,7 +30,6 @@ def init_lattice(L):
 
 
 def mc_step(latt, T):
-    nlatt = np.array(latt, copy=True)
     L = latt.shape[0]
 
     # choisit un spin random
@@ -43,41 +42,39 @@ def mc_step(latt, T):
 
     # acceptation/rejet
     if dE <= 0:
-        nlatt[i, j] *= -1
+        latt[i, j] *= -1
     elif np.random.uniform() < np.exp(-dE/T):
-        nlatt[i, j] *= -1
-
-    return nlatt
+        latt[i, j] *= -1
 
 
 def mc(latt, N_eq, N, T, separation):
-    sampled_latt = [latt]
-    nlatt = latt
-
+    nlatt = np.array(latt, copy=True)
     for i in range(N_eq):
         if i%10000 == 0:
             print(f"Equilibrage: {i}/{N_eq}")
-        nlatt = mc_step(nlatt, T)
+        mc_step(nlatt, T)
 
+    sampled_latt = [np.array(nlatt, copy=True)]
     for i in range(N):
         if i % 10000 == 0:
             print(f"MC step : {i}/{N}")
+        mc_step(nlatt, T)
         if (i+1) % separation == 0:
             sampled_latt += [np.array(nlatt, copy=True)]
-        nlatt = mc_step(nlatt, T)
 
-    return np.array(sampled_latt)  # shape (N, L, L)
+    return np.array(sampled_latt)  # shape (#latt, L, L)
 
 
 # Main
 
 if __name__ == "__main__":
-    dir = "test1/"
+    dir = "set1/"
     L = 64
-    N_eq = int(1e6)
-    N = int(5e6)
-    separation = int(1e6)
-    list_T = [1.4, 1.5, 1.6, 1.7, 1.8, 2.6, 2.7, 2.8, 2.9, 3.0]
+    N_eq = int(2e6)
+    N = int(25e5)
+    separation = int(5e5)
+    list_T = [1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1]
+    nb_mc = 10
 
     if not os.path.exists(dir):
         os.mkdir(dir)
@@ -92,27 +89,25 @@ if __name__ == "__main__":
     classification = []
 
     for T in list_T:
-        subdir = dir + f"T={T}/"
-        os.mkdir(subdir)
+        for mc_id in range(nb_mc):
+            print(f"Avancement : T={T}, mc_id={mc_id}/{nb_mc}")
 
-        latt = init_lattice(L)
-        sampled_latt = mc(latt, N_eq, N, T, separation)
+            subdir = dir + f"T={T}_mc_id={mc_id}/"
+            os.mkdir(subdir)
 
-        nsamples = sampled_latt.shape[0]
-        vectors += np.split(sampled_latt.flatten(), nsamples)
-        classification += [0 if T < critical_temperature() else 1]*nsamples
+            latt = init_lattice(L)
+            sampled_latt = mc(latt, N_eq, N, T, separation)
 
-        for i, sample in enumerate(sampled_latt):
-            plt.imsave(subdir+f"{i}.png", sample)
-        """
-        fig = plt.figure()
-        ims = []
-        for sample in sampled_latt:
-            im = plt.imshow(sample, animated=True)
-        ani = animation.ArtistAnimation(fig, ims, interval=50)
-        """
-    np.savetxt(dir+"vectors", np.array(vectors), fmt="%d")
-    np.savetxt(dir+"classification", np.array(classification), fmt="%d")
+            nsamples = sampled_latt.shape[0]
+            vectors += np.split(sampled_latt.flatten(), nsamples)
+            classification += [0 if T < critical_temperature() else 1]*nsamples
+
+            for i, sample in enumerate(sampled_latt):
+                plt.imsave(subdir+f"{i}.png", sample)
+
+    np.savetxt(dir+"vectors", np.array(vectors), fmt="%d")  # shape (#samples, L**2)
+    np.savetxt(dir+"classification", np.array(classification), fmt="%d")  # shape (#samples,)
+
 
 
 
