@@ -41,16 +41,15 @@ def mc_step(latt, T):
     dE = 2*s*neighbors
 
     # acceptation/rejet
-    if dE <= 0:
-        latt[i, j] *= -1
-    elif np.random.uniform() < np.exp(-dE/T):
-        latt[i, j] *= -1
+    if dE <= 0 or np.random.uniform() < np.exp(-dE/T):
+        latt[i, j] = -s
 
 
 def mc(latt, N_eq, N, T, separation):
     nlatt = np.array(latt, copy=True)
+
     for i in range(N_eq):
-        if i%10000 == 0:
+        if i % 10000 == 0:
             print(f"Equilibrage: {i}/{N_eq}")
         mc_step(nlatt, T)
 
@@ -71,7 +70,7 @@ if __name__ == "__main__":
     dir = "set1/"
     L = 64
     N_eq = int(2e6)
-    N = int(25e5)
+    N = int(20e5)
     separation = int(5e5)
     list_T = [1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1]
     nb_mc = 10
@@ -89,7 +88,7 @@ if __name__ == "__main__":
     classification = []
 
     for T in list_T:
-        for mc_id in range(nb_mc):
+        for mc_id in range(1, nb_mc+1):
             print(f"Avancement : T={T}, mc_id={mc_id}/{nb_mc}")
 
             subdir = dir + f"T={T}_mc_id={mc_id}/"
@@ -107,13 +106,3 @@ if __name__ == "__main__":
 
     np.savetxt(dir+"vectors", np.array(vectors), fmt="%d")  # shape (#samples, L**2)
     np.savetxt(dir+"classification", np.array(classification), fmt="%d")  # shape (#samples,)
-
-
-
-
-
-
-
-
-
-
