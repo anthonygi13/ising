@@ -27,27 +27,37 @@ def split_data(data,val,ratio):
     count1=0
     ratio=0.8
     for i in range(len(val)):
-        if val[i]==1:
-            if count1<len(val)*ratio:
+        if val[i][0]==1:
+            if count1<len(val)*0.5*ratio:
                 count1+=1
                 data_train+=[data[i]]
-                val_train+=[val[i]]
+                val_train+=[val[i][0]]
             else:
                 data_test+=[data[i]]
-                val_test+=[val[i]]
+                val_test+=[val[i][0]]
         else:
-            if count0<len(val)*ratio:
+            if count0<len(val)*0.5*ratio:
                 count0+=1
                 data_train+=[data[i]]
-                val_train+=[val[i]]
+                val_train+=[val[i][0]]
             else:
                 data_test+=[data[i]]
-                val_test+=[val[i]]
+                val_test+=[val[i][0]]
     data_train=np.asarray(data_train)
     data_test=np.asarray(data_test)
     val_train=np.asarray(val_train)
     val_test=np.asarray(val_test)
     return data_train,val_train,data_test,val_test
+
+def plot_loss(history, label):
+    plt.plot(history.epoch,history.history['loss'], 
+                 label='Train '+label)
+    plt.plot(history.epoch,history.history['val_loss'],
+             label='Val '+label, linestyle="--")
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Valeur de la fonction de coût au cours des epochs')
+    plt.legend()  
 
 def show(array):
     size=int(np.sqrt(len(array)))
@@ -74,7 +84,7 @@ def plot_image(i, predictions_array, true_label, img):
                                   true_label),color=color)
 
 def plot_value_array(i, predictions_array, true_label):
-    true_label = true_label[i][0]
+    true_label = true_label[i]
     plt.grid(False)
     plt.xticks(range(2))
     plt.yticks([])
@@ -100,21 +110,24 @@ if __name__ == "__main__":
     data_train,val_train,data_test,val_test=split_data(data,val,ratio)
     
     model=tf.keras.models.Sequential([tf.keras.layers.Dense(128, activation='relu'),
-                                      tf.keras.layers.Dense(128, activation='relu'),
                                       tf.keras.layers.Dense(2)])
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.BinaryCrossentropy(),
                   metrics=['accuracy'])
-    model.fit(data_train,val_train,epochs=5)
+    history=model.fit(data_train,val_train,epochs=10,validation_data=(data_test,val_test))
     model.evaluate(data_test,val_test,verbose=2)
+    
+    
+    plot_loss(history,'data')
+    
     
     proba=tf.keras.Sequential([model,tf.keras.layers.Softmax()])
     predictions=proba(data_test)
     
-    i=0
-    
+    i=4
     plt.figure(figsize=(6,3))
     plt.subplot(1,2,1)
+    plt.title('Prédiction sur la donnée de test n°{}'.format(i))
     plot_image(i,predictions[i],val_test,data_test)
     plt.subplot(1,2,2)
     plot_value_array(i, predictions[i],val_test)
