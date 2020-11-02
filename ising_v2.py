@@ -67,7 +67,7 @@ def mc(latt, N_eq, N, T, separation):
 # Main
 
 if __name__ == "__main__":
-    dir = "set1/"
+    dir = "set2/"
     L = 64
     N_eq = int(2e6)
     N = int(20e5)
