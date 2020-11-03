@@ -20,7 +20,7 @@ def sigma(x):
 
 
 def load_network():
-    pass  # TODO, et reflechir a si c vraiment pratique d avoir training_set te classification en attributs
+    pass  # TODO, et reflechir a si c vraiment pratique d avoir training_set et classification en attributs
 
 
 class NeuralNetwork():
@@ -34,7 +34,7 @@ class NeuralNetwork():
         self.training_set = np.array(training_set, copy=True)
         self.labels = np.array(labels, copy=True)
         assert training_set.shape[0] == labels.shape[0]
-        self.M = [training_set.shape[1]]  # list of n+1 M_l (l=0->n)
+        self.M = [training_set.shape[1]]  # list of n+1 M_l (l=0->n)  # FIXME: a degager ?
         print("M0:", self.M[-1])
         self.check_W(initial_W, self.M[0])
         for W_l in initial_W:
@@ -42,7 +42,7 @@ class NeuralNetwork():
         self.W = deepcopy(initial_W)
         self.n = len(initial_W)
 
-        self.cross_entropies = []
+        self.cross_entropies = []  # TODO: a degager
 
     @staticmethod
     def check_W(W, M0):
@@ -60,11 +60,12 @@ class NeuralNetwork():
         :param args: W_1, W_2, ..., W_n
         :return: predicted probability for the input vector to correspond to a configuration at T>Tc
         """
+        # TODO: tester avec un seul input_vector
         M0 = input_vectors.shape[1] if input_vectors.ndim == 2 else input_vectors.shape[0]
         NeuralNetwork.check_W(args, M0)
         x = input_vectors.T
         for W_l in args:
-            xp = np.append(x, np.ones((1, x.shape[1])), axis=0)  # TODO: tester avec un seul input_vector
+            xp = np.append(x, np.ones((1, x.shape[1])), axis=0)  # TODO: useful ?
             z = W_l @ xp
             x = sigma(z)
         return x[0]
@@ -76,12 +77,11 @@ class NeuralNetwork():
         :param args: W_1, W_2, ..., W_n
         :return:
         """
-        # TODO: checker formule
         M0 = training_set.shape[1]
         NeuralNetwork.check_W(args, M0)
         prediction = NeuralNetwork.classification_func(training_set, *args)
 
-        return np.sum(- (labels * np.log(prediction) + (1 - labels) * np.log(1 - prediction)))  # FIXME: log(0)=-infty...
+        return np.mean(- (labels * np.log(prediction) + (1 - labels) * np.log(1 - prediction)))  # FIXME: log(0)=-infty...
 
     def get_cross_entropy(self):
         return self.cross_entropy_func(self.training_set, self.labels, *self.W)
@@ -94,6 +94,7 @@ class NeuralNetwork():
         #return [grad(NeuralNetwork.cross_entropy_func, argnums=i+2)(self.training_set, self.labels, *self.W) for i in range(self.n)]
 
     def training(self, step_size, epsilon=None, nsteps=None):
+        # TODO: return list de cross entropies
         if epsilon is None and nsteps is None:
             raise ValueError("At least one parameter must be filled among epsilon and nsteps.")
 
@@ -112,6 +113,9 @@ class NeuralNetwork():
                 break
 
     def save_network(self, path):
+        pass  # TODO
+
+    def get_validity_percentage(self):
         pass  # TODO
 
 
