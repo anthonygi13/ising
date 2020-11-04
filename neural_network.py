@@ -19,30 +19,41 @@ def sigma(x):
     return 1/(1+np.exp(-x))
 
 
-def load_network():
-    pass  # TODO, et reflechir a si c vraiment pratique d avoir training_set et classification en attributs
+def load_network(path, n):
+    W = []
+    for l in range(1, n+1):
+        W += [np.array(numpy.loadtxt(path+f"W{l}", ndmin=2))]
+        print(W[-1].shape)
+    return NeuralNetwork(W)
+
+
+
+def initialise_W(M, training_set, renormalisation):
+    assert M[0] == training_set.shape[1]
+    assert M[-1] == 1
+    x = training_set.T
+    W = []
+    for i in range(1, len(M)):
+        W_T = np.array(numpy.random.uniform(size=(M[i], M[i-1])))
+        z_T = W_T @ x
+        mean = np.mean(z_T, axis=1)
+        std = np.std(z_T, axis=1)
+        W += [np.append(W_T, np.expand_dims(-mean, axis=1), axis=1) / (np.expand_dims(std, axis=1) * renormalisation)]
+        x = sigma(W[-1] @ np.append(x, np.ones((1, x.shape[1])), axis=0))
+    return W
 
 
 class NeuralNetwork():
-    def __init__(self, initial_W, training_set, labels):
+    def __init__(self, initial_W):
         """
         :param initial_W: list of n arrays W_l (l=1->n) with shape (M_l, M_{l-1}+1)
         and W_n must have shape (1, M_{n-1}+1)
-        :param training_set: array of training vectors with shape (#samples, M_0)
-        :param labels: 1D array of labels associated to the training vectors (either 0 or 1)
         """
-        self.training_set = np.array(training_set, copy=True)
-        self.labels = np.array(labels, copy=True)
         assert training_set.shape[0] == labels.shape[0]
-        self.M = [training_set.shape[1]]  # list of n+1 M_l (l=0->n)  # FIXME: a degager ?
-        print("M0:", self.M[-1])
-        self.check_W(initial_W, self.M[0])
-        for W_l in initial_W:
-            self.M += [W_l.shape[0]]
+        M0 = training_set.shape[1]
+        self.check_W(initial_W, M0)
         self.W = deepcopy(initial_W)
         self.n = len(initial_W)
-
-        self.cross_entropies = []  # TODO: a degager
 
     @staticmethod
     def check_W(W, M0):
@@ -54,7 +65,7 @@ class NeuralNetwork():
         assert W[-1].shape[0] == 1
 
     @staticmethod
-    def classification_func(input_vectors, *args):
+    def classification_func(input_vectors, *args):  # TODO: changer nom pour predicted proba ou un truc comme ca ?
         """
         :param input_vectors:
         :param args: W_1, W_2, ..., W_n
@@ -65,7 +76,7 @@ class NeuralNetwork():
         NeuralNetwork.check_W(args, M0)
         x = input_vectors.T
         for W_l in args:
-            xp = np.append(x, np.ones((1, x.shape[1])), axis=0)  # TODO: useful ?
+            xp = np.append(x, np.ones((1, x.shape[1])), axis=0)
             z = W_l @ xp
             x = sigma(z)
         return x[0]
@@ -81,66 +92,92 @@ class NeuralNetwork():
         NeuralNetwork.check_W(args, M0)
         prediction = NeuralNetwork.classification_func(training_set, *args)
 
-        return np.mean(- (labels * np.log(prediction) + (1 - labels) * np.log(1 - prediction)))  # FIXME: log(0)=-infty...
+        return np.mean(- (labels * np.log(prediction) + (1 - labels) * np.log(1 - prediction)))
 
-    def get_cross_entropy(self):
-        return self.cross_entropy_func(self.training_set, self.labels, *self.W)
+    def get_cross_entropy(self, training_set, labels):
+        """
+        :param training_set: array of training vectors with shape (#samples, M_0)
+        :param labels: 1D array of labels associated to the training vectors (either 0 or 1)
+        :return:
+        """
+        return self.cross_entropy_func(training_set, labels, *self.W)
 
     def get_classification(self, input_vectors):
+        """
+        :param input_vectors: array of input vectors with shape (#vectors, M_0)
+        :return:
+        """
         return self.classification_func(input_vectors, *self.W)
 
-    def get_grad(self):
-        return grad(NeuralNetwork.cross_entropy_func, argnums=np.arange(2, self.n+2))(self.training_set, self.labels, *self.W)
+    def get_grad(self, training_set, labels):
+        """
+        :param training_set: array of training vectors with shape (#samples, M_0)
+        :param labels: 1D array of labels associated to the training vectors (either 0 or 1)
+        :return:
+        """
+        return grad(NeuralNetwork.cross_entropy_func, argnums=np.arange(2, self.n+2))(training_set, labels, *self.W)
         #return [grad(NeuralNetwork.cross_entropy_func, argnums=i+2)(self.training_set, self.labels, *self.W) for i in range(self.n)]
 
-    def training(self, step_size, epsilon=None, nsteps=None):
-        # TODO: return list de cross entropies
+    def training(self, training_set, labels, step_size, epsilon=None, nsteps=None):
         if epsilon is None and nsteps is None:
             raise ValueError("At least one parameter must be filled among epsilon and nsteps.")
 
-        self.cross_entropies += [self.get_cross_entropy()]
+        cross_entropies = [self.get_cross_entropy(training_set, labels)]
+        validity_rates = [self.get_validity_rate(training_set, labels)]
         i = 0
         while True:
-            grad_W = self.get_grad()
-            for l in range(self.n):
-                self.W[l] -= step_size * grad_W[l]
-            self.cross_entropies += [self.get_cross_entropy()]
-
-            i += 1
-            if nsteps is not None and i > nsteps:
+            try:
+                grad_W = self.get_grad(training_set, labels)
+                for l in range(self.n):
+                    self.W[l] -= step_size * grad_W[l]
+                cross_entropies += [self.get_cross_entropy(training_set, labels)]
+                validity_rates += [self.get_validity_rate(training_set, labels)]
+                if i % 10 == 0:
+                    print(f"Training step {i}/{nsteps}")
+                i += 1
+                if nsteps is not None and i > nsteps:
+                    break
+                if epsilon is not None and cross_entropies[-2] - cross_entropies[-1] < epsilon:
+                    break
+            except KeyboardInterrupt:
                 break
-            if epsilon is not None and self.cross_entropies[-2] - self.cross_entropies[-1] < epsilon:
-                break
+        return cross_entropies, validity_rates
 
     def save_network(self, path):
-        pass  # TODO
+        for l, Wl in enumerate(self.W):
+            numpy.savetxt(path + f"W{l+1}", Wl)
 
-    def get_validity_percentage(self):
-        pass  # TODO
+    def get_validity_rate(self, vectors, labels):
+        predicted_proba = self.get_classification(vectors)
+        return np.mean((predicted_proba > 0.5) == labels)
 
 
 # Main
 if __name__ == "__main__":
     dir = "set1/"
-    training_set = np.array(numpy.loadtxt(dir+"vectors"))
-    labels = np.array(numpy.loadtxt(dir+"classification"))
+    path = "nw1/"
+    nsteps = 10000
+    step_size = 0.01
+    renormalisation = 3
 
-    # TODO: mieux choisir coefficients pour etre dans la partie lineaire du log : faire des calculs de moyenne et variance sur training set pour gerer ça
+    training_set = np.array(numpy.loadtxt(dir + "vectors"))
+    labels = np.array(numpy.loadtxt(dir + "classification"))
     M0 = training_set.shape[1]
     M = [M0, 2000, 1]
-    W = []
-    for i in range(1, len(M)):
-        W += [np.array(numpy.random.uniform(size=(M[i], M[i-1]+1)))]
 
-    nw = NeuralNetwork(W, training_set, labels)
+    W = initialise_W(M, training_set, renormalisation)
+    nw = NeuralNetwork(W)
+    #nw = load_network(path, 2)
 
-    print(nw.training_set)
-    print(nw.labels)
-    print(nw.classification_func(nw.training_set, *nw.W))
-    print(nw.get_classification(nw.training_set))
-    print(nw.cross_entropy_func(training_set, labels, *nw.W))
-    print(nw.get_cross_entropy())
+    cross_entropies, validity_rates = nw.training(training_set, labels, step_size, nsteps=nsteps)
 
-    #nw.training(0.01, nsteps=10)
-    plt.plot(np.arange(len(nw.cross_entropies)), nw.cross_entropies)
+    nw.save_network(path)
+
+    plt.subplot(121)
+    plt.plot(np.arange(1, len(cross_entropies)+1), cross_entropies, label="cross entropy")
+    plt.xlabel("Epoch")
+    plt.subplot(122)
+    plt.plot(np.arange(1, len(validity_rates)+1), validity_rates, label="validity_rates")
+    plt.xlabel("Epoch")
+    plt.legend()
     plt.show()
