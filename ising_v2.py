@@ -21,12 +21,16 @@ def critical_temperature():
     return 2/np.log(1+np.sqrt(2))
 
 
-def init_lattice(L):
+def init_random_lattice(L):
     """
     :param L: taille du reseau
     :return: initialise reseau carre de L*L spins
     """
     return 2*np.random.randint(2, size=(L, L)) - 1
+
+
+def init_uniform_lattice(L):
+    return np.ones((L, L), dtype=int)*(2*np.random.randint(2)-1)
 
 
 def mc_step(latt, T):
@@ -67,13 +71,13 @@ def mc(latt, N_eq, N, T, separation):
 # Main
 
 if __name__ == "__main__":
-    dir = "set2/"
+    dir = "set5/"
     L = 64
     N_eq = int(2e6)
-    N = int(20e5)
+    N = int(20e5) * 30
     separation = int(5e5)
     list_T = [1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1]
-    nb_mc = 10
+    nb_mc = 1
 
     if not os.path.exists(dir):
         os.mkdir(dir)
@@ -94,7 +98,11 @@ if __name__ == "__main__":
             subdir = dir + f"T={T}_mc_id={mc_id}/"
             os.mkdir(subdir)
 
-            latt = init_lattice(L)
+            if T < critical_temperature():
+                latt = init_uniform_lattice(L)
+            else:
+                latt = init_random_lattice(L)
+
             sampled_latt = mc(latt, N_eq, N, T, separation)
 
             nsamples = sampled_latt.shape[0]
